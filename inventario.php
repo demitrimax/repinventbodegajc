@@ -9,7 +9,31 @@
       $fechaReporte = $_GET['fechar'];
     }
 
-    $consulta = 'SELECT entradas.id, entradas.Nombre, ifnull( entradas.Entra - IFNULL( salidas.tventas, 0 ), 0 ) AS stockInicial, MovEntradas.Entradas AS Entradas, ifnull( entradas.Entra - IFNULL( salidas.tventas, 0 ), 0 ) + MovEntradas.Entradas as CantAcum FROM ( SELECT cat_productos.Id, cat_productos.Nombre,   ifnull( Sum( mov_inventario.Cantidad ), 0 ) AS Entradas FROM cat_productos LEFT JOIN mov_inventario ON mov_inventario.Id_Producto = cat_productos.Id AND mov_inventario.Tipo_Operacion = "Entrada" AND  date_format( mov_inventario.Fecha, "%d/%m/%Y" ) = "'.$fechaReporte.'" GROUP BY cat_productos.Id,     cat_productos.Nombre ) AS MovEntradas LEFT JOIN ( SELECT
+    $consulta = 'SELECT
+  entradas.id,
+  entradas.Nombre,
+  ifnull( entradas.Entra - IFNULL( salidas.tventas, 0 ), 0 ) AS stockInicial,
+  MovEntradas.Entradas AS Entradas,
+  ifnull( entradas.Entra - IFNULL( salidas.tventas, 0 ), 0 ) + MovEntradas.Entradas AS CantAcum,
+  ifnull(tolventas.tventas,0) as Salidas,
+  ifnull(stockfinal.stock,0) AS StockFinal 
+FROM
+  (
+  SELECT
+    cat_productos.Id,
+    cat_productos.Nombre,
+    ifnull( Sum( mov_inventario.Cantidad ), 0 ) AS Entradas 
+  FROM
+    cat_productos
+    LEFT JOIN mov_inventario ON mov_inventario.Id_Producto = cat_productos.Id 
+    AND mov_inventario.Tipo_Operacion = "Entrada" 
+    AND date_format( mov_inventario.Fecha, "%d/%m/%Y" ) = "'.$fechaReporte.'" 
+  GROUP BY
+    cat_productos.Id,
+    cat_productos.Nombre 
+  ) AS MovEntradas
+  LEFT JOIN (
+  SELECT
     entradas.Id,
     entradas.Nombre,
     entradas.Entradas - ifnull( salidas.Salidas, 0 ) AS Entra 
@@ -40,7 +64,7 @@
     WHERE
       mov_inventario.Id_Producto = cat_productos.Id 
       AND mov_inventario.Tipo_Operacion = "Salida" 
-      AND mov_inventario.Fecha < STR_TO_DATE("'.$fechaReporte.'", "%d/%m/%Y" ) 
+      AND mov_inventario.Fecha < STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
     GROUP BY
       cat_productos.Id,
       cat_productos.Nombre 
@@ -61,8 +85,71 @@
     cat_productos.Nombre,
     ventas.Cancelada 
   HAVING
-  ventas.Cancelada = 0 
-  ) AS Salidas ON entradas.Id = salidas.Id';
+    ventas.Cancelada = 0 
+  ) AS Salidas ON entradas.Id = salidas.Id
+  LEFT JOIN (
+  SELECT
+    entradas.id,
+    entradas.Nombre,
+    ifnull( entradas.Entra - ifnull( salidas.tventas, 0 ), 0 ) AS stock 
+  FROM
+    (
+    SELECT
+      entradas.Id,
+      entradas.Nombre,
+      entradas.Entradas - ifnull( salidas.Salidas, 0 ) AS Entra 
+    FROM
+      (
+      SELECT
+        cat_productos.Id,
+        cat_productos.Nombre,
+        Sum( mov_inventario.Cantidad ) AS Entradas 
+      FROM
+        mov_inventario
+        RIGHT JOIN cat_productos ON mov_inventario.Id_Producto = cat_productos.Id 
+        AND mov_inventario.Tipo_Operacion = "Entrada" 
+        AND date( mov_inventario.Fecha ) <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+      GROUP BY
+        cat_productos.Id,
+        cat_productos.Nombre 
+      ) AS Entradas
+      LEFT JOIN (
+      SELECT
+        cat_productos.Id,
+        cat_productos.Nombre,
+        Sum( mov_inventario.Cantidad ) AS Salidas 
+      FROM
+        mov_inventario,
+        cat_productos 
+      WHERE
+        mov_inventario.Id_Producto = cat_productos.Id 
+        AND mov_inventario.Tipo_Operacion = "Salida" 
+        AND date( mov_inventario.Fecha ) <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+      GROUP BY
+        cat_productos.Id,
+        cat_productos.Nombre 
+      ) AS Salidas ON salidas.Id = entradas.Id 
+    ) AS Entradas
+    LEFT JOIN (
+    SELECT
+      cat_productos.Id,
+      cat_productos.Nombre,
+      Sum( det_ventas.CantidadV ) AS tventas 
+    FROM
+      ventas
+      INNER JOIN ( cat_productos INNER JOIN det_ventas ON cat_productos.Id = det_ventas.ClaveProdV ) ON ventas.IdV = det_ventas.ClaveVenta 
+      AND det_ventas.Fecha <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+    GROUP BY
+      cat_productos.Id,
+      cat_productos.Nombre,
+      ventas.Cancelada 
+    HAVING
+      ventas.Cancelada = 0 
+    ) AS Salidas ON entradas.Id = salidas.Id 
+  ) AS StockFinal ON entradas.Id = StockFinal.id LEFT JOIN (SELECT cat_productos.Id, cat_productos.Nombre, Sum(det_ventas.CantidadV) AS tventas
+FROM ventas RIGHT JOIN (cat_productos LEFT JOIN det_ventas ON cat_productos.Id = det_ventas.ClaveProdV) ON ventas.IdV = det_ventas.ClaveVenta AND det_ventas.Fecha = STR_TO_DATE("'.$fechaReporte.'", "%d/%m/%Y") 
+GROUP BY cat_productos.Id, cat_productos.Nombre, ventas.Cancelada
+HAVING ventas.Cancelada=0) as tolventas ON entradas.Id = tolventas.id;';
     $resultado = $conn->query($consulta);
   } catch (Exception $e) {
       $error = $e->getMessage();
@@ -116,9 +203,19 @@
         </thead>
         <tbody>
           <?php $conta = 0;
+              $stockinicial = 0;
+              $entradas = 0;
+              $cantacum = 0;
+              $salidas = 0;
+              $stockfinal = 0;
           while ($registros = $resultado->fetch_assoc()) { 
             if (!is_null($registros['Nombre'])) {
               $conta++;
+              $stockinicial += $registros['stockInicial'];
+              $entradas += $registros['Entradas'];
+              $cantacum += $registros['CantAcum'];
+              $salidas += $registros['Salidas'];
+              $stockfinal += $registros['StockFinal'];
             ?>
           <tr>
             <th scope="row"><?php echo $conta ?></th>
@@ -126,10 +223,21 @@
             <td><?php echo $registros['stockInicial'] ?></td>
             <td><?php echo $registros['Entradas'] ?></td>
             <td><?php echo $registros['CantAcum'] ?></td>
-            <td>@mdo</td>
-            <td>@mdo</td>
+            <td><?php echo $registros['Salidas'] ?></td>
+            <td><?php echo $registros['StockFinal'] ?></td>
           </tr>
           <?php } } ?>
+          <tfoot>
+            <tr>
+              <th></th>
+              <th>Totales</th>
+              <th><?php echo $stockinicial; ?></th>
+              <th><?php echo $entradas; ?></th>
+              <th><?php echo $cantacum; ?></th>
+              <th><?php echo $salidas; ?></th>
+              <th><?php echo $stockfinal; ?></th>
+            </tr>
+          </tfoot>
         </tbody>
       </table>
 
