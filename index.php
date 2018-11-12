@@ -54,7 +54,21 @@
           <button type="submit" class="btn btn-primary">Visualizar</button>
         </div>
       </form>
-    </div>
+      <div class="panel panel-default">
+        <div class="panel-body">
+          <div class="input-group mb-3">
+            <div class="input-group-prepend">
+              <label class="input-group-text" for="inputGroupSelect02">Seleccione Reporte Semanal</label>
+            </div>
+              <select class="custom-select" id="selectSemana" name="selectSemana">
+                <?php while ($registros = $resultado->fetch_assoc()) { ?>
+            <option value="<?php echo date_format(date_create($registros['Fecha2']),'d/m/Y') ?>"><?php echo $registros['fecha'] ?></option>
+          <?php } ?>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </main><!-- /.container -->
 
