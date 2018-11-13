@@ -1,7 +1,7 @@
 <?php 
   try {
     require_once('funciones/bd_conexion.php');
-    $fechaReporte = date("Y-m-d");
+    $fechaReporte = date("m/d/Y");
     //$fechaReporte = "06/10/2018";
     if(isset($_POST['selectFecha'])) {
       $fechaReporte = $_POST['selectFecha'];
@@ -9,8 +9,11 @@
     if(isset($_GET['fechar'])) {
       $fechaReporte = $_GET['fechar'];
     }
-    $fecReporte = date("m-d-Y", strtotime($fechaReporte));
-    //echo $fechaReporte." | ".chr(13);
+    $fechaReporte = str_replace('/', '-', $fechaReporte);
+    //$fecReporte = $fechaReporte;
+    $fecReporte = date("m/d/Y", strtotime($fechaReporte));
+    //echo $fechaReporte."  ".chr(13);
+    //die;
     $fechaReporte = array();
     for ($d=0; $d<8; $d++) {
       $fechaReporte[$d] = date("d/m/Y", strtotime($fecReporte."- ".$d." days"));
