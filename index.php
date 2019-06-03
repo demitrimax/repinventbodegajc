@@ -2,6 +2,8 @@
   try {
     require_once('funciones/bd_conexion.php');
     $consulta = 'SELECT DATE_FORMAT(det_ventas.Fecha,"%d/%m/%Y") as fecha, det_ventas.Fecha as Fecha2 FROM det_ventas GROUP BY det_ventas.Fecha ORDER BY det_ventas.Fecha DESC';
+    $bodegas = 'SELECT id, nombre FROM cat_bodegas';
+    $resbodegas = $conn->query($bodegas);
     $resultado = $conn->query($consulta);
   } catch (Exception $e) {
       $error = $e->getMessage();
@@ -41,30 +43,45 @@
         <p class="lead">Puede usar esta página para visualizar los reportes del inventario de la aplicación.</p>
       </div>
       <div class="container">
-        <form action="inventario.php" method="post">
-          <div class="input-group mb-3">
-          <div class="input-group-prepend">
-              <label class="input-group-text" for="inputGroupSelect01">Seleccione la Fecha: </label>
-          </div>
-          <select class="custom-select" id="selectFecha" name="selectFecha">
-            <?php while ($registros = $resultado->fetch_assoc()) { ?>
-            <option value="<?php echo date_format(date_create($registros['Fecha2']),'d/m/Y') ?>"><?php echo $registros['fecha'] ?></option>
-          <?php } ?>
-          </select>
-          <button type="submit" class="btn btn-primary">Visualizar</button>
-        </div>
-      </form>
-      <div class="panel panel-default">
-        <div class="panel-body">
-          <div class="input-group mb-3">
-            <div class="input-group-prepend">
-              <label class="input-group-text" for="inputGroupSelect02">Seleccione Reporte Semanal</label>
+        <div class="row">
+          <div class="col-md-12">
+
+            <form action="inventario.php" method="post">
+
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <label class="input-group-text" for="inputGroupSelect01">Seleccione la Fecha: </label>
+                </div>
+                <select class="custom-select" id="selectFecha" name="selectFecha">
+                  <?php while ($registros = $resultado->fetch_assoc()) { ?>
+                  <option value="<?php echo date_format(date_create($registros['Fecha2']),'d/m/Y') ?>"><?php echo $registros['fecha'] ?></option>
+                  <?php } ?>
+                </select>
+                <div class="input-group-prepend">
+                  <label class="input-group-text" for="inputGroupSelect01">Seleccione la Bodega: </label>
+                </div>
+                <select class="custom-select" id="bodegaid" name="bodegaid">
+                  <?php while ($registros = $resbodegas->fetch_assoc()) { ?>
+                  <option value="<?php echo $registros['id'] ?>"><?php echo $registros['nombre'] ?></option>
+                  <?php } ?>
+                </select>
+              <button type="submit" class="btn btn-primary">Visualizar</button>
             </div>
-              <select class="custom-select" id="selectSemana" name="selectSemana">
-                <?php while ($registros = $resultado->fetch_assoc()) { ?>
-            <option value="<?php echo date_format(date_create($registros['Fecha2']),'d/m/Y') ?>"><?php echo $registros['fecha'] ?></option>
-          <?php } ?>
-              </select>
+
+          </form>
+          <div class="panel panel-default">
+            <div class="panel-body">
+              <div class="input-group mb-3">
+                <div class="input-group-prepend">
+                  <label class="input-group-text" for="inputGroupSelect02">Seleccione Reporte Semanal</label>
+                </div>
+                  <select class="custom-select" id="selectSemana" name="selectSemana">
+                    <?php while ($registros = $resultado->fetch_assoc()) { ?>
+                <option value="<?php echo date_format(date_create($registros['Fecha2']),'d/m/Y') ?>"><?php echo $registros['fecha'] ?></option>
+              <?php } ?>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>

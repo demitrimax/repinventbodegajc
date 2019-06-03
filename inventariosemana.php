@@ -9,6 +9,9 @@
     if(isset($_GET['fechar'])) {
       $fechaReporte = $_GET['fechar'];
     }
+    /*
+    Las fechas en los formatos m / d / a o d-m-y se desambiguan al mirar el separador entre los diversos componentes: si el separador es una barra (/), se asume el m / d / y estadounidense; mientras que si el separador es un guión (-) o un punto (.), se asume el formato europeo d-m-y.
+    */
     $fechaReporte = str_replace('/', '-', $fechaReporte);
     //$fecReporte = $fechaReporte;
     $fecReporte = date("m/d/Y", strtotime($fechaReporte));

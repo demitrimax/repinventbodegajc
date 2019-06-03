@@ -9,6 +9,12 @@
     if(isset($_GET['fechar'])) {
       $fechaReporte = $_GET['fechar'];
     }
+    if(isset($_GET['bodegaid'])) {
+      $bodegaid = $_GET['bodegaid'];
+    }
+    if(isset($_POST['bodegaid'])) {
+      $bodegaid = $_POST['bodegaid'];
+    }
 
     $consulta = 'SELECT
   entradas.id,
@@ -50,6 +56,7 @@ FROM
     WHERE
       mov_inventario.Tipo_Operacion = "Entrada" 
       AND mov_inventario.Fecha < STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+      AND mov_inventario.bodega_id = '.$bodegaid.' 
     GROUP BY
       cat_productos.Id,
       cat_productos.Nombre 
@@ -66,6 +73,7 @@ FROM
       mov_inventario.Id_Producto = cat_productos.Id 
       AND mov_inventario.Tipo_Operacion = "Salida" 
       AND mov_inventario.Fecha < STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+      AND mov_inventario.bodega_id = '.$bodegaid.'
     GROUP BY
       cat_productos.Id,
       cat_productos.Nombre 
@@ -81,6 +89,7 @@ FROM
     INNER JOIN ( cat_productos INNER JOIN det_ventas ON cat_productos.Id = det_ventas.ClaveProdV ) ON ventas.IdV = det_ventas.ClaveVenta 
   WHERE
     det_ventas.Fecha < STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+    AND det_ventas.bodega_id = '. $bodegaid.'
   GROUP BY
     cat_productos.Id,
     cat_productos.Nombre,
@@ -110,6 +119,7 @@ FROM
         RIGHT JOIN cat_productos ON mov_inventario.Id_Producto = cat_productos.Id 
         AND mov_inventario.Tipo_Operacion = "Entrada" 
         AND date( mov_inventario.Fecha ) <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+        AND mov_inventario.bodega_id = '.$bodegaid.'
       GROUP BY
         cat_productos.Id,
         cat_productos.Nombre 
@@ -126,6 +136,7 @@ FROM
         mov_inventario.Id_Producto = cat_productos.Id 
         AND mov_inventario.Tipo_Operacion = "Salida" 
         AND date( mov_inventario.Fecha ) <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+        AND mov_inventario.bodega_id = '.$bodegaid.'
       GROUP BY
         cat_productos.Id,
         cat_productos.Nombre 
@@ -140,6 +151,7 @@ FROM
       ventas
       INNER JOIN ( cat_productos INNER JOIN det_ventas ON cat_productos.Id = det_ventas.ClaveProdV ) ON ventas.IdV = det_ventas.ClaveVenta 
       AND det_ventas.Fecha <= STR_TO_DATE( "'.$fechaReporte.'", "%d/%m/%Y" ) 
+      AND det_ventas.bodega_id = '.$bodegaid.'
     GROUP BY
       cat_productos.Id,
       cat_productos.Nombre,
@@ -149,10 +161,14 @@ FROM
     ) AS Salidas ON entradas.Id = salidas.Id 
   ) AS StockFinal ON entradas.Id = StockFinal.id LEFT JOIN (SELECT cat_productos.Id, cat_productos.Nombre, Sum(det_ventas.CantidadV) AS tventas
 FROM ventas RIGHT JOIN (cat_productos LEFT JOIN det_ventas ON cat_productos.Id = det_ventas.ClaveProdV) ON ventas.IdV = det_ventas.ClaveVenta AND det_ventas.Fecha = STR_TO_DATE("'.$fechaReporte.'", "%d/%m/%Y") 
+  AND det_ventas.bodega_id = '.$bodegaid.' 
 GROUP BY cat_productos.Id, cat_productos.Nombre, ventas.Cancelada
 HAVING ventas.Cancelada=0) as tolventas ON entradas.Id = tolventas.id;';
     //echo $consulta;
+    $bodegasel = 'SELECT * FROM cat_bodegas WHERE id = '.$bodegaid.';';
     $resultado = $conn->query($consulta);
+    $resbodega = $conn->query($bodegasel);
+    $bodega = $resbodega->fetch_array();
   } catch (Exception $e) {
       $error = $e->getMessage();
 
@@ -176,9 +192,8 @@ HAVING ventas.Cancelada=0) as tolventas ON entradas.Id = tolventas.id;';
     <link href="starter-template.css" rel="stylesheet">
 
   <body>
-
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-      <a class="navbar-brand" href="index.php">Bodega JC</a>
+      <a class="navbar-brand" href="index.php">Bodega: <?php echo $bodega['nombre'] ?> </a>
       <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -187,9 +202,9 @@ HAVING ventas.Cancelada=0) as tolventas ON entradas.Id = tolventas.id;';
 
     <main role="main" class="container">
       <pre>
-      <?php //var_dump($_POST); ?>
+      <?php //var_dump($bodega); ?>
     </pre>
-      <h1>Reporte del Inventario</h1>
+      <h1>Reporte del Inventario <?php echo $bodega['nombre'] ?></h1>
       <h4>Fecha: <?php echo $fechaReporte?></h4>
       <table class="table table-striped table-hover table-sm">
         <thead>
